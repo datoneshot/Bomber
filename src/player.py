@@ -1,11 +1,15 @@
 class Player:
     def __init__(self, data):
-        self.id = data["id"]
-        self.col = data["currentPosition"]["col"]
-        self.row = data["currentPosition"]["row"]
-        self.space_stone = data["spaceStone"]
-        self.mind_stone = data["mindStone"]
-        self.reality_stone = data["realityStone"]
-        self.power_stone = data["powerStone"]
-        self.time_stone = data["timeStone"]
-        self.soul_stone = data["soulStone"]
+        self.id = data.get('id')
+        current_position = data.get('currentPosition')
+
+        if current_position:
+            self.col = current_position.get('col')
+            self.row = current_position.get('row')
+
+        self.space_stone = data.get('spaceStone')
+        self.mind_stone = data.get('mindStone')
+        self.reality_stone = data.get('realityStone')
+        self.power_stone = data.get('powerStone')
+        self.time_stone = data.get('timeStone')
+        self.soul_stone = data.get('soulStone')
