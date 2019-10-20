@@ -25,6 +25,7 @@ COL_NUM = [0, -1, 1, 0]
 
 TIME_START = datetime.utcnow()
 BOARD = None
+IS_WAIT_BOMB_EXPLOSIVE = False
 
 
 class ItemType(object):
@@ -220,70 +221,80 @@ def near_by_item(board, pos, item_code):
 
 def bom_setup(board):
     """
-    Thu dat bomb va chay
-    :param board:
-    :return:
+    Try setup bomb and run to safe position
+    :param board: game board
+    :return: None
     """
     my_player = board.get_player(MY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
 
-    is_near, pos_item = near_by_item(board, my_pos, ItemType.WOOD)
+    bomb = Bomb({
+        'row': my_pos.row,
+        'col': my_pos.col,
+        'playerId': MY_PLAYER_ID,
+        'remainTime': 2000
+    })
 
-    if is_near:
-        bomb = Bomb({
-            'row': my_pos.row,
-            'col': my_pos.col,
-            'playerId': MY_PLAYER_ID,
-            'remainTime': 2000
-        })
+    board.bombs.append(bomb)
+    paths = find_positions(
+        board=board,
+        my_pos=my_pos,
+        items_type=[ItemType.STONE, ItemType.WOOD],
+        not_condition=False
+    )
+    if paths:
+        # setup bomb and run to safe position
+        send_command(Commands.BOMB)
 
-        board.bombs.append(bomb)
-        paths = find_positions(
-            board=board,
-            my_pos=my_pos,
-            items_type=[ItemType.STONE, ItemType.WOOD],
-            not_condition=False
-        )
-        if paths:
-            # dat bomb va chay
-            send_command(Commands.BOMB)
+    board.bombs.remove(bomb)
 
-        board.bombs.remove(bomb)
 
-    else:
-        paths = find_positions(
-            board=board,
-            my_pos=my_pos,
-            items_type=[ItemType.WOOD],
-            not_condition=True
-        )
+def find_nearest_spoils(board, my_pos):
+    """
+    Find nearest spoils
+    :param board: game board
+    :param my_pos: current position of my player
+    :return: shortest path from my player's position to one of the spoils
+    """
+    if len(board.spoils) <= 0:
+        return None
 
-        logger.info("PATHS WOOD: %s" % paths)
+    min_distance = sys.maxsize
+    min_paths = None
+    for spoil in board.spoils:
+        spoil_pos = Position(spoil.row, spoil.col)
+        distance, paths = bfs(board, my_pos, spoil_pos)
+        if distance > 0 and paths and len(paths) > 1:
+            if distance < min_distance:
+                min_distance = distance
+                min_paths = paths
 
-        if paths and len(paths) > 1:
+    return min_paths
 
-            action = find_action(paths[1], my_pos)
-            send_command(action)
-        else:
-            paths = find_positions(
-                board=board,
-                my_pos=my_pos,
-                items_type=[ItemType.EMPTY],
-                not_condition=True
-            )
 
-            logger.info("PATHS EMPTY: %s" % paths)
-
-            if paths and len(paths) > 1:
-                action = find_action(paths[1], my_pos)
-                send_command(action)
+def shortest_path_to_enemy(board):
+    """
+    Find shortest path from current my position to enemy position
+    :param board: board game
+    :return: shortest path if has
+    """
+    my_player = board.get_player(MY_PLAYER_ID)
+    enemy_player = board.get_player(ENEMY_PLAYER_ID)
+    my_pos = Position(my_player.row, my_player.col)
+    enemy_pos = Position(enemy_player.row, enemy_player.col)
+    _, paths = bfs(board, my_pos, enemy_pos)
+    return paths
 
 
 def handle_command(board):
     my_player = board.get_player(MY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
 
-    # Luon luon check bomb
+
+
+    # If current my position not safe then I must find nearest safe position
+    # and run to there as fast as possible
+    # I must wait for bomb explosive before execute next action
     if not check_safe(board, my_pos):
         paths = find_positions(
             board=board,
@@ -291,30 +302,46 @@ def handle_command(board):
             items_type=[ItemType.WOOD, ItemType.STONE],
             not_condition=False
         )
-
         if paths and len(paths) > 1:
             action = find_action(paths[1], my_pos)
-            send_command(action)
+            send_command(action)    # Run to safe position
+            # Wait bomb explosive
 
     else:
-        # Tim vat pham canh minh
-        if len(board.spoils) > 0:
-            is_spoil = False
-
-            for spoil in board.spoils:
-                spoil_pos = Position(spoil.row, spoil.col)
-                distance, paths = bfs(board, my_pos, spoil_pos)
-                if 0 < distance <= 3:
-                    if paths and len(paths) > 1:
-                        action = find_action(paths[1], my_pos)
-                        send_command(action)
-                        is_spoil = True
-
-            if not is_spoil:
-                bom_setup(board)
-
+        # Find shortest path from current position to one of the spoils
+        # and run to it
+        spoil_paths = find_nearest_spoils(board, my_pos)
+        if spoil_paths and len(spoil_paths) > 1:
+            action = find_action(spoil_paths[1], my_pos)
+            send_command(action)
         else:
-            bom_setup(board)
+            # If my position near wood then try setup bomb here
+            # to destroy it
+            is_near, pos_item = near_by_item(board, my_pos, ItemType.WOOD)
+            if is_near:
+                bom_setup(board)
+            else:
+                # If I didn't find neighbor wood then try find nearest wood
+                # and move to it
+                wood_paths = find_positions(
+                    board=board,
+                    my_pos=my_pos,
+                    items_type=[ItemType.WOOD],
+                    not_condition=True
+                )
+                logger.info("PATHS WOOD: %s" % wood_paths)
+                if wood_paths and len(wood_paths) > 1:
+                    action = find_action(wood_paths[1], my_pos)
+                    send_command(action)
+                else:
+                    # If I didn't find any wood on board then
+                    # I will find shortest path to enemy and bomb him
+                    enemy_paths = shortest_path_to_enemy()
+                    if enemy_paths and len(enemy_paths) > 1:
+                        action = find_action(enemy_paths[1], my_pos)
+                        send_command(action)
+                    else:
+                        pass   # Don't execute any action
 
     if board.tag_name == 'start-game':
         thread = threading.Thread(target=check_time)
@@ -384,6 +411,7 @@ def check_time():
     if delta.seconds > 2:
         TIME_START = datetime.utcnow()
         handle_command(BOARD)
+
 
 if __name__ == '__main__':
     if len(sys.argv) <= 3:
