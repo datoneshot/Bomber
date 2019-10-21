@@ -197,7 +197,6 @@ def find_action(dest_pos, my_pos):
 
 
 def near_by_item(board, pos, item_code):
-
     matrix = board.map
     up = max(0, pos.row - 1)
     down = min(board.rows, pos.row + 1)
@@ -217,6 +216,20 @@ def near_by_item(board, pos, item_code):
         return True, Position(pos.row, right)
 
     return False, None
+
+
+def is_near_enemy(board):
+    my_player = board.get_player(MY_PLAYER_ID)
+    enemy_player = board.get_player(ENEMY_PLAYER_ID)
+    my_pos = Position(my_player.row, my_player.col)
+    enemy_pos = Position(enemy_player.row, enemy_player.col)
+    if (my_pos.row == enemy_pos.row) and ((my_pos.col-1 == enemy_pos.col) or
+                                          (my_pos.col+1 == enemy_pos.col)):
+        return True
+    if ((my_pos.col == enemy_pos.col) and ((my_pos.row-1 == enemy_pos.row) or
+                                           my_pos.row+1 == enemy_pos.row)):
+        return True
+    return False
 
 
 def bom_setup(board):
@@ -272,6 +285,11 @@ def find_nearest_spoils(board, my_pos):
     return min_paths
 
 
+def has_bombs(board):
+    num_bombs = board.bombs
+    return len(num_bombs) > 0
+
+
 def shortest_path_to_enemy(board):
     """
     Find shortest path from current my position to enemy position
@@ -290,11 +308,13 @@ def handle_command(board):
     my_player = board.get_player(MY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
 
-
-
     # If current my position not safe then I must find nearest safe position
     # and run to there as fast as possible
     # I must wait for bomb explosive before execute next action
+    if has_bombs(board):
+        if check_safe(board, my_pos):
+            return  # don't execute any action
+
     if not check_safe(board, my_pos):
         paths = find_positions(
             board=board,
@@ -304,7 +324,7 @@ def handle_command(board):
         )
         if paths and len(paths) > 1:
             action = find_action(paths[1], my_pos)
-            send_command(action)    # Run to safe position
+            send_command(action)  # Run to safe position
             # Wait bomb explosive
 
     else:
@@ -315,33 +335,36 @@ def handle_command(board):
             action = find_action(spoil_paths[1], my_pos)
             send_command(action)
         else:
-            # If my position near wood then try setup bomb here
-            # to destroy it
-            is_near, pos_item = near_by_item(board, my_pos, ItemType.WOOD)
-            if is_near:
-                bom_setup(board)
+            if is_near_enemy(board):
+                bom_setup(board)  # Bomb enemy
             else:
-                # If I didn't find neighbor wood then try find nearest wood
-                # and move to it
-                wood_paths = find_positions(
-                    board=board,
-                    my_pos=my_pos,
-                    items_type=[ItemType.WOOD],
-                    not_condition=True
-                )
-                logger.info("PATHS WOOD: %s" % wood_paths)
-                if wood_paths and len(wood_paths) > 1:
-                    action = find_action(wood_paths[1], my_pos)
-                    send_command(action)
+                # If my position near wood then try setup bomb here
+                # to destroy it
+                is_near, pos_item = near_by_item(board, my_pos, ItemType.WOOD)
+                if is_near:
+                    bom_setup(board)
                 else:
-                    # If I didn't find any wood on board then
-                    # I will find shortest path to enemy and bomb him
-                    enemy_paths = shortest_path_to_enemy()
-                    if enemy_paths and len(enemy_paths) > 1:
-                        action = find_action(enemy_paths[1], my_pos)
+                    # If I didn't find neighbor wood then try find nearest wood
+                    # and move to it
+                    wood_paths = find_positions(
+                        board=board,
+                        my_pos=my_pos,
+                        items_type=[ItemType.WOOD],
+                        not_condition=True
+                    )
+                    logger.info("PATHS WOOD: %s" % wood_paths)
+                    if wood_paths and len(wood_paths) > 1:
+                        action = find_action(wood_paths[1], my_pos)
                         send_command(action)
                     else:
-                        pass   # Don't execute any action
+                        # If I didn't find any wood on board then
+                        # I will find shortest path to enemy and bomb him
+                        enemy_paths = shortest_path_to_enemy()
+                        if enemy_paths and len(enemy_paths) > 1:
+                            action = find_action(enemy_paths[1], my_pos)
+                            send_command(action)
+                        else:
+                            pass  # Don't execute any action
 
     if board.tag_name == 'start-game':
         thread = threading.Thread(target=check_time)
@@ -395,9 +418,9 @@ def ticktack_player(data):
         logger.info("Ignore data =====> ")
         return
 
-    if MY_PLAYER_ID == "player1-xxx-xxx-xxx":
-        TIME_START = datetime.utcnow()
-        handle_command(new_board)
+    # if MY_PLAYER_ID == "player1-xxx-xxx-xxx":
+    #     TIME_START = datetime.utcnow()
+    handle_command(new_board)
 
 
 def check_time():
