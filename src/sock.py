@@ -1,4 +1,4 @@
-from timeloop import Timeloop
+# from timeloop import Timeloop
 from collections import deque
 from datetime import timedelta
 from datetime import datetime
@@ -11,6 +11,7 @@ import socketio
 from src.board import Board
 from src.bomb import Bomb
 from src.node import Node, Position
+import threading
 
 log_format = '%(asctime)s (%(levelname)s) : [%(name)s],%(filename)s:%(lineno)d %(message)s'
 logging.root.handlers = []
@@ -29,7 +30,6 @@ BOARD = None
 
 IS_WAIT_BOMB_EXPLOSIVE = False
 
-RUNNING_TIME_LOOP = Timeloop()
 
 IS_RUN_TO_SAFE_POS = False
 SAFE_RUN_PATH = None
@@ -58,22 +58,31 @@ class Commands(object):
     DOWN = "4"
 
 
-@RUNNING_TIME_LOOP.job(interval=timedelta(seconds=0.15))
 def run_character():
-    global SAFE_RUN_PATH
-    global IS_RUN_TO_SAFE_POS
-    global MY_PLAYER_POS_WHEN_RUNNING
 
-    if SAFE_RUN_PATH and len(SAFE_RUN_PATH) > 0:
-        next_position = SAFE_RUN_PATH.pop(0)
-        action = find_action(next_position, MY_PLAYER_POS_WHEN_RUNNING)
-        send_command(action)
-        MY_PLAYER_POS_WHEN_RUNNING = next_position
-    else:
-        IS_RUN_TO_SAFE_POS = False
-        MY_PLAYER_POS_WHEN_RUNNING = None
-        SAFE_RUN_PATH = None
-        RUNNING_TIME_LOOP.stop()
+    is_stop = False
+
+    while not is_stop:
+
+        global SAFE_RUN_PATH
+        global IS_RUN_TO_SAFE_POS
+        global MY_PLAYER_POS_WHEN_RUNNING
+
+        if SAFE_RUN_PATH and len(SAFE_RUN_PATH) > 0:
+            next_position = SAFE_RUN_PATH.pop(0)
+            action = find_action(next_position, MY_PLAYER_POS_WHEN_RUNNING)
+            send_command(action)
+            MY_PLAYER_POS_WHEN_RUNNING = next_position
+        else:
+            IS_RUN_TO_SAFE_POS = False
+            MY_PLAYER_POS_WHEN_RUNNING = None
+            SAFE_RUN_PATH = None
+            is_stop = True
+
+
+def running():
+    th = threading.Thread(target=run_character, daemon=True)
+    th.start()
 
 
 def begin_join_game():
@@ -313,6 +322,10 @@ def bom_setup(board):
     :param board: game board
     :return: None
     """
+    global IS_RUN_TO_SAFE_POS
+    global SAFE_RUN_PATH
+    global MY_PLAYER_POS_WHEN_RUNNING
+
     my_player = board.get_player(MY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
 
@@ -331,8 +344,7 @@ def bom_setup(board):
         items_type=[ItemType.STONE, ItemType.WOOD],
         not_condition=False
     )
-    if paths:
-        # setup bomb and run to safe position
+    if paths and len(paths) > 1:
         send_command(Commands.BOMB)
 
     board.bombs.remove(bomb)
@@ -410,11 +422,11 @@ def handle_command(board):
             not_condition=False
         )
         if paths and len(paths) > 1:
-            IS_RUN_TO_SAFE_POS = True
+            IS_RUN_TO_SAFE_POS, MY_PLAYER_POS_WHEN_RUNNING = True, my_pos
             paths.pop(0)
+
             SAFE_RUN_PATH = paths
-            MY_PLAYER_POS_WHEN_RUNNING = my_pos
-            RUNNING_TIME_LOOP.start()
+            running()
     else:
         # If near enemy then bomb it first
         if is_near_enemy(board):
@@ -479,7 +491,6 @@ def connect():
 @sio.event
 def disconnect():
     print("I'm disconnected!")
-    RUNNING_TIME_LOOP.stop()
     sys.exit(0)
 
 
@@ -759,5 +770,6 @@ if __name__ == '__main__':
         exit(0)
 
     URL, GAME_ID, MY_PLAYER_ID, ENEMY_PLAYER_ID = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+
     sio.connect(URL)
     sio.wait()
