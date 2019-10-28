@@ -1,6 +1,4 @@
-# from timeloop import Timeloop
 from collections import deque
-from datetime import timedelta
 from datetime import datetime
 from random import sample
 
@@ -11,7 +9,8 @@ import socketio
 from src.board import Board
 from src.bomb import Bomb
 from src.node import Node, Position
-import threading
+import time
+
 
 log_format = '%(asctime)s (%(levelname)s) : [%(name)s],%(filename)s:%(lineno)d %(message)s'
 logging.root.handlers = []
@@ -58,31 +57,62 @@ class Commands(object):
     DOWN = "4"
 
 
-def run_character():
+def get_delay_time():
+    global TIME_START
+    delta = datetime.utcnow() - TIME_START
+    miniseconds = delta.microseconds
+    seconds = delta.seconds
+    time_consume = seconds * 1.0 + (miniseconds * 1.0) / 1000000
+    logger.info("================> TIME CONSUME: %s" % time_consume)
+    return max(0.0, 5.0 - time_consume)
 
-    is_stop = False
 
-    while not is_stop:
+def run_character(paths):
+    global IS_RUN_TO_SAFE_POS
+    global MY_PLAYER_POS_WHEN_RUNNING
+    global TIME_START
+    global BOARD
 
-        global SAFE_RUN_PATH
-        global IS_RUN_TO_SAFE_POS
-        global MY_PLAYER_POS_WHEN_RUNNING
+    TIME_START = datetime.utcnow()
 
-        if SAFE_RUN_PATH and len(SAFE_RUN_PATH) > 0:
-            next_position = SAFE_RUN_PATH.pop(0)
-            action = find_action(next_position, MY_PLAYER_POS_WHEN_RUNNING)
+    if paths and len(paths) > 0:
+        logger.info("====> Running path: %s" % paths)
+        idx = 1
+        my_post = Position(MY_PLAYER_POS_WHEN_RUNNING.row, MY_PLAYER_POS_WHEN_RUNNING.col)
+
+        for next_position in paths:
+
+            action = find_action(next_position, my_post)
             send_command(action)
-            MY_PLAYER_POS_WHEN_RUNNING = next_position
-        else:
-            IS_RUN_TO_SAFE_POS = False
-            MY_PLAYER_POS_WHEN_RUNNING = None
-            SAFE_RUN_PATH = None
-            is_stop = True
+            logger.info("=====> Step %s: my position: %s, next position: %s, Action: %s" % (
+                idx, my_post, next_position, action))
+
+            my_post = Position(next_position.row, next_position.col)
+
+            if idx == len(paths):
+                delay_time = get_delay_time()
+
+                logger.info("==========> DELAY: %s <==============" % delay_time)
+                time.sleep(delay_time)
+
+                IS_RUN_TO_SAFE_POS = False
+                MY_PLAYER_POS_WHEN_RUNNING = None
+                handle_command(BOARD)
+
+            idx += 1
+
+            time.sleep(0.5)
+
+    else:
+        time.sleep(get_delay_time())
+        IS_RUN_TO_SAFE_POS = False
+        MY_PLAYER_POS_WHEN_RUNNING = None
+
+        handle_command(BOARD)
 
 
-def running():
-    th = threading.Thread(target=run_character, daemon=True)
-    th.start()
+def running(paths):
+    run_character(paths)
 
 
 def begin_join_game():
@@ -322,9 +352,6 @@ def bom_setup(board):
     :param board: game board
     :return: None
     """
-    global IS_RUN_TO_SAFE_POS
-    global SAFE_RUN_PATH
-    global MY_PLAYER_POS_WHEN_RUNNING
 
     my_player = board.get_player(MY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
@@ -348,6 +375,8 @@ def bom_setup(board):
         send_command(Commands.BOMB)
 
     board.bombs.remove(bomb)
+
+    logger.info("=====> Setup bomb at %s" % my_pos)
 
 
 def find_nearest_spoils(board, my_pos):
@@ -404,18 +433,22 @@ def handle_command(board):
     global IS_RUN_TO_SAFE_POS
     global SAFE_RUN_PATH
     global MY_PLAYER_POS_WHEN_RUNNING
+    global TIME_START
 
     my_player = board.get_player(MY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
 
     # If my player is running to safe position
     if IS_RUN_TO_SAFE_POS:
+        logger.info("=========================>IGNORE<==========================")
         return
 
     # If current my position not safe then I must find nearest safe position
     # and run to there as fast as possible
     # I must wait for bomb explosive before execute next action
     if is_in_danger_area(board=board, x=my_player.col, y=my_player.row):
+        logger.info("=============> Position danger")
+
         paths = find_positions(
             board=board,
             items_type=[ItemType.WOOD, ItemType.STONE],
@@ -424,9 +457,7 @@ def handle_command(board):
         if paths and len(paths) > 1:
             IS_RUN_TO_SAFE_POS, MY_PLAYER_POS_WHEN_RUNNING = True, my_pos
             paths.pop(0)
-
-            SAFE_RUN_PATH = paths
-            running()
+            running(paths)
     else:
         # If near enemy then bomb it first
         if is_near_enemy(board):
@@ -503,7 +534,6 @@ def join_game(data):
 def ticktack_player(data):
     logger.info('Received data: ', data)
 
-    global TIME_START
     global BOARD
 
     new_board = Board(data)
