@@ -12,18 +12,21 @@ class Position(object):
 
 
 class Node:
-    def __init__(self, row, col, dist=0, parent=None):
+    def __init__(self, row, col, dist=0, parent=None, command=""):
         self.row = row
         self.col = col
         self.parent = parent
         self.dist = dist
+        self.command = command
 
     def get_path(self):
         pth = [Position(self.row, self.col)]
+        directions = [self.command]
         p = self.parent
         while p is not None:
             pth.append(Position(p.row, p.col))
+            directions.append(p.command)
             p = p.parent
 
-        return list(reversed(pth))
+        return list(reversed(directions))
 
