@@ -28,5 +28,5 @@ class Node:
             directions.append(p.command)
             p = p.parent
 
-        return list(reversed(directions))
+        return list(reversed(directions)), list(reversed(pth))
 

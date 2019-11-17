@@ -10,6 +10,7 @@ from src.board import Board
 from src.bomb import Bomb
 from src.node import Node, Position
 import time
+import threading
 
 
 class ItemType(object):
@@ -66,6 +67,37 @@ def get_delay_time():
     time_consume = seconds * 1.0 + (miniseconds * 1.0) / 1000000
     logger.info("================> TIME CONSUME: %s" % time_consume)
     return max(0.0, 5.0 - time_consume)
+
+
+def waiting_bomb_explosive():
+    global IS_WAIT_BOMB_EXPLOSIVE
+    global BOARD
+    # waiting for x seconds
+    time.sleep(2.0)
+    IS_WAIT_BOMB_EXPLOSIVE = False
+    handle_command(BOARD)
+
+
+def start_waiting_bomb_explosive():
+    thread = threading.Thread(target=waiting_bomb_explosive)
+    thread.start()
+
+
+def run_character_watch_dog():
+    global TIME_START
+    global BOARD
+    while True:
+        delta = datetime.utcnow() - TIME_START
+        seconds = delta.seconds
+        if seconds >= 10:
+            TIME_START = datetime.utcnow()
+            handle_command(BOARD)
+        time.sleep(1.0)
+
+
+def start_run_character_watch_dog():
+    thread = threading.Thread(target=run_character_watch_dog)
+    thread.start()
 
 
 def run_character(paths):
@@ -181,7 +213,8 @@ def bfs(board, src, dest):
     while queue:
         node = queue.popleft()
         if node.row == dest.row and node.col == dest.col:
-            return node.dist, node.get_path()
+            directions, paths = node.get_path()
+            return node.dist, directions, paths
         for i in range(4):
             row = node.row + ROW_NUM[i]
             col = node.col + COL_NUM[i]
@@ -190,7 +223,7 @@ def bfs(board, src, dest):
                 visited[row][col] = True
                 queue.append(Node(row=row, col=col, dist=node.dist + 1, parent=node, command=command))
 
-    return -1, None
+    return -1, None, None
 
 
 def find_pos(matrix, types, is_in=True):
@@ -264,6 +297,7 @@ def find_positions(board, items_type, not_condition=True):
 
         min_dist = sys.maxsize
         paths = None
+        directions = None
         dest_pos = None
 
         if ItemType.WOOD in items_type and not_condition:
@@ -272,13 +306,14 @@ def find_positions(board, items_type, not_condition=True):
         for cor in item_cells_pos:
             if not is_in_danger_area(board=board, x=cor[1], y=cor[0]):
                 des_pos = Position(cor[0], cor[1])
-                distance, pth = bfs(board, my_pos, des_pos)
+                distance, drcs, pth = bfs(board, my_pos, des_pos)
                 if distance != -1 and distance < min_dist:
                     min_dist = distance
                     paths = pth
+                    directions = drcs
                     dest_pos = des_pos
 
-    return paths, dest_pos
+    return directions, dest_pos, paths
 
 
 def find_action(dest_pos, my_pos):
@@ -368,7 +403,7 @@ def bom_setup(board):
     # Copy map and bomb to process
 
     board.bombs.append(bomb)
-    paths, dest_pos = find_positions(
+    paths, dest_pos, _ = find_positions(
         board=board,
         items_type=[ItemType.STONE, ItemType.WOOD],
         not_condition=False
@@ -378,6 +413,8 @@ def bom_setup(board):
         IS_RUN_TO_SAFE_POS = True
         MY_PLAYER_POS_WHEN_RUNNING = dest_pos
         send_command(cmds)
+        IS_WAIT_BOMB_EXPLOSIVE = True
+        start_waiting_bomb_explosive()
 
     board.bombs.remove(bomb)
 
@@ -392,22 +429,24 @@ def find_nearest_spoils(board, my_pos):
     :return: shortest path from my player's position to one of the spoils
     """
     if len(board.spoils) <= 0:
-        return None
+        return None, None, None
 
     min_distance = sys.maxsize
+    min_directions = None
     min_paths = None
     dest_pos = None
     for spoil in board.spoils:
         spoil_pos = Position(spoil.row, spoil.col)
         if not is_in_danger_area(board=board, x=spoil.col, y=spoil.row):
-            distance, paths = bfs(board, my_pos, spoil_pos)
+            distance, directions, paths = bfs(board, my_pos, spoil_pos)
             if distance > 0 and paths and len(paths) > 1:
                 if distance < min_distance:
                     min_distance = distance
                     min_paths = paths
+                    min_directions = directions
                     dest_pos = spoil_pos
-
-    return min_paths, dest_pos
+    logger.info("=====> Spoil paths at %s is: %s" % (dest_pos, min_paths))
+    return min_directions, dest_pos, min_paths
 
 
 def shortest_path_to_enemy(board):
@@ -420,8 +459,8 @@ def shortest_path_to_enemy(board):
     enemy_player = board.get_player(ENEMY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
     enemy_pos = Position(enemy_player.row, enemy_player.col)
-    _, paths = bfs(board, my_pos, enemy_pos)
-    return paths, enemy_pos
+    _, directions, paths = bfs(board, my_pos, enemy_pos)
+    return directions, enemy_pos, paths
 
 
 def board_is_valid():
@@ -441,6 +480,7 @@ def handle_command(board):
     global SAFE_RUN_PATH
     global MY_PLAYER_POS_WHEN_RUNNING
     global TIME_START
+    global IS_WAIT_BOMB_EXPLOSIVE
 
     my_player = board.get_player(MY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
@@ -451,10 +491,8 @@ def handle_command(board):
         else:
             IS_RUN_TO_SAFE_POS = False
 
-    # If my player is running to safe position
-    # if IS_RUN_TO_SAFE_POS:
-    #     logger.info("=========================>IGNORE<==========================")
-    #     return
+    if IS_WAIT_BOMB_EXPLOSIVE:
+        return
 
     # If current my position not safe then I must find nearest safe position
     # and run to there as fast as possible
@@ -462,19 +500,19 @@ def handle_command(board):
     if is_in_danger_area(board=board, x=my_player.col, y=my_player.row):
         logger.info("=============> Position danger")
 
-        paths, dest_pos = find_positions(
+        directions, dest_pos, _ = find_positions(
             board=board,
             items_type=[ItemType.WOOD, ItemType.STONE],
             not_condition=False
         )
-        if paths and len(paths) > 1:
-            cmd = "".join(paths[1:])
+        if directions and len(directions) > 1:
+            cmd = "".join(directions[1:])
             IS_RUN_TO_SAFE_POS = True
             MY_PLAYER_POS_WHEN_RUNNING = dest_pos
             send_command(cmd)
-            # IS_RUN_TO_SAFE_POS, MY_PLAYER_POS_WHEN_RUNNING = True, my_pos
-            # paths.pop(0)
-            # running(paths)
+            IS_WAIT_BOMB_EXPLOSIVE = True
+            start_waiting_bomb_explosive()
+
     else:
         # If near enemy then bomb it first
         if is_near_enemy(board):
@@ -482,12 +520,13 @@ def handle_command(board):
         else:
             # Find shortest path from current position to one of the spoils
             # and run to it
-            spoil_paths = find_nearest_spoils(board, my_pos)
-            if spoil_paths and len(spoil_paths) > 1:
-                cmd = "".join(spoil_paths[1:])
+            spoil_directions, dest_pos, spoil_paths = find_nearest_spoils(board, my_pos)
+
+            if spoil_directions and len(spoil_directions) > 1 and is_path_safe(board, spoil_paths[1:]):
+                cmd = "".join(spoil_directions[1:])
+                IS_RUN_TO_SAFE_POS = True
+                MY_PLAYER_POS_WHEN_RUNNING = dest_pos
                 send_command(cmd)
-                # action = find_action(spoil_paths[1], my_pos)
-                # send_command(action)
             else:
                 # If my position near wood then try setup bomb here
                 # to destroy it
@@ -497,35 +536,32 @@ def handle_command(board):
                 else:
                     # If I didn't find neighbor wood then try find nearest wood
                     # and move to it
-                    wood_paths, dest_pos = find_positions(
+                    wood_directions, dest_pos, wood_paths = find_positions(
                         board=board,
                         items_type=[ItemType.WOOD],
                         not_condition=True
                     )
                     logger.info("PATHS WOOD: %s" % wood_paths)
-                    if wood_paths and len(wood_paths) > 1:
-                        cmd = "".join(wood_paths[1:])
+                    if wood_directions and len(wood_directions) > 1 and is_path_safe(board, wood_paths[1:]):
+                        cmd = "".join(wood_directions[1:])
                         IS_RUN_TO_SAFE_POS = True
                         MY_PLAYER_POS_WHEN_RUNNING = dest_pos
                         send_command(cmd)
-                        # action = find_action(wood_paths[1], my_pos)
-                        # send_command(action)
                     else:
                         # If I didn't find any wood on board then
                         # I will find shortest path to enemy and bomb him
-                        enemy_paths, dest_pos = shortest_path_to_enemy(board)
-                        if enemy_paths and len(enemy_paths) > 1:
-                            cmd = "".join(enemy_paths[1:])
+                        enemy_directions, dest_pos, enemy_paths = shortest_path_to_enemy(board)
+                        if enemy_directions and len(enemy_directions) > 1 and is_path_safe(board, enemy_paths[1:]):
+                            cmd = "".join(enemy_directions[1:])
                             IS_RUN_TO_SAFE_POS = True
                             MY_PLAYER_POS_WHEN_RUNNING = dest_pos
                             send_command(cmd)
-                            # action = find_action(enemy_paths[1], my_pos)
-                            # send_command(action)
                         else:
                             pass  # Don't execute any action
 
     if board.tag_name == 'start-game':
-        pass
+        # start a thread to run character when don't have any event from server
+        start_run_character_watch_dog()
     elif board.tag_name == 'player:start-moving':
         pass
     elif board.tag_name == 'player:stop-moving':
@@ -534,6 +570,13 @@ def handle_command(board):
         pass
     elif board.tag_name == 'bomb:explosed':
         pass
+
+
+def is_path_safe(board, paths):
+    for path in paths:
+        if is_in_danger_area(board, path.col, path.row):
+            return False
+    return True
 
 
 def send_command(cmd):
@@ -562,26 +605,18 @@ def ticktack_player(data):
     logger.info('Received data: ', data)
 
     global BOARD
+    global TIME_START
 
     new_board = Board(data)
     BOARD = new_board
+    TIME_START = datetime.utcnow()
 
     if not board_is_valid():
         logger.info("Ignore data =====> ")
         return
 
-    handle_command(new_board)
-
-
-def control_character(board):
-    command = next_move(board=board)
-    if command is not None:
-        send_command(command)
-
-
-"""
-New logic
-"""
+    if MY_PLAYER_ID == 'player1-xxx-xxx-xxx':
+        handle_command(new_board)
 
 
 def find_around_me(board, allowed, col, row):
@@ -687,137 +722,6 @@ def is_in_danger_area(board, x, y):
                 return True
 
     return False
-
-
-def bfs_(board, matrix, x, y, stop, allowed, limit=False):
-    """
-    Find shortest path from position to any cell item
-    :param board: game board
-    :param matrix: map matrix
-    :param x: col to check
-    :param y: row to check
-    :param stop:
-    :param allowed:
-    :param limit:
-    :return: shortest path
-    """
-    ans = set()
-    visited = np.full((board.rows, board.cols), False, dtype=bool)
-
-    q = deque()
-    init_dirs = find_around_me(board, allowed, x, y)
-
-    if Commands.LEFT in init_dirs:
-        q.append((x - 1, y, 1, Commands.LEFT))
-    if Commands.RIGHT in init_dirs:
-        q.append((x + 1, y, 1, Commands.RIGHT))
-    if Commands.UP in init_dirs:
-        q.append((x, y - 1, 1, Commands.UP))
-    if Commands.DOWN in init_dirs:
-        q.append((x, y + 1, 1, Commands.DOWN))
-
-    visited[y][x] = True
-
-    while q:
-        curr = q.popleft()
-        n_x = curr[0]
-        n_y = curr[1]
-        d = curr[2]
-        i_dir = curr[3]
-
-        if limit and d > limit:
-            return limit - 1, ans
-
-        if stop(matrix, n_x, n_y):
-            ans.update({i_dir})
-            limit = d + 1
-
-        matrix[n_y][n_x] = True
-
-        dirs = find_around_me(board, allowed, n_x, n_y)
-        if Commands.LEFT in dirs:
-            q.append((n_x - 1, n_y, d + 1, i_dir))
-        if Commands.RIGHT in dirs:
-            q.append((n_x + 1, n_y, d + 1, i_dir))
-        if Commands.UP in dirs:
-            q.append((n_x, n_y - 1, d + 1, i_dir))
-        if Commands.DOWN in dirs:
-            q.append((n_x, n_y + 1, d + 1, i_dir))
-
-    return False, ans
-
-
-def next_move(board):
-    """
-    Calculate action type after receive game board info
-    :param board: game board
-    :return: one of command:
-        BOMB = "b"
-        LEFT = "1"
-        RIGHT = "2"
-        UP = "3"
-        DOWN = "4"
-    """
-
-    my_player = board.get_player(MY_PLAYER_ID)
-    enemy_player = board.get_player(ENEMY_PLAYER_ID)
-    bombs = board.bombs or []
-
-    enemy_code = 555
-
-    # copy board map matrix to change
-    matrix = np.array(board.map, copy=True)
-
-    # add bombs to map
-    for bomb in bombs:
-        x_bomb, y_bomb = bomb.col, bomb.row
-        matrix[y_bomb][x_bomb] = 666
-
-    # Look for nearby bombs
-    if is_in_danger_area(board, my_player.col, my_player.row):
-        # If in range, look for a safe place
-        dist, path = bfs_(board, matrix, my_player.col, my_player.row,
-                          lambda mat, x1, y1: not is_in_danger_area(board, x1, y1),
-                          lambda mat, x2, y2: mat[y2][x2] == 0, limit=5)
-        if path:
-            direction = sample(path, 1)[0]
-            return direction
-
-    # find empty space around me
-    dirs = find_around_me(board, lambda mat, x1, y1: mat[y1][x1] == 0, my_player.col, my_player.row)
-
-    # add enemy to map
-    matrix[enemy_player.row][enemy_player.col] = enemy_code
-
-    # find nearest player and a safe root
-    # higher priority - clear path
-    dist, path = bfs_(board, matrix, my_player.col, my_player.row, lambda mat, x1, y1: mat[y1][x1] == enemy_code,
-                      lambda mat, x1, y1: mat[y1][x1] in [0, enemy_code] and not is_in_danger_area(board, x1, y1))
-    if dist and dist == 1:
-        return Commands.BOMB
-    path.intersection_update(dirs)
-    if path:
-        direction = sample(path, 1)[0]
-        return direction
-
-    # lower priority - blocked path
-    dist, path = bfs_(board, matrix, my_player.col, my_player.row, lambda mat, x1, y1: mat[y1][x1] == 2,
-                      lambda mat, x1, y1: mat[y1][x1] in [0, 2] and not is_in_danger_area(board, x1, y1))
-    path.intersection_update(dirs)
-    if path:
-        direction = sample(path, 1)[0]
-        return direction
-
-    # way is blocked- drop a bomb only if you have somewhere to run
-    dist, path = bfs_(board, matrix, my_player.col, my_player.row,
-                      lambda mat, x1, y1: not is_in_danger_area(board, x1, y1),
-                      lambda mat, x1, y1: mat[y1][x1] in [0, enemy_code] and not is_in_danger_area(board, x1, y1),
-                      limit=5)
-    if path:
-        return Commands.BOMB
-
-    # nothing to else do
-    return None
 
 
 if __name__ == '__main__':
