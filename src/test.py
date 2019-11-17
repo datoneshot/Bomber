@@ -44,12 +44,16 @@ logging.basicConfig(level='INFO', format=log_format, datefmt='%Y-%m-%d %H:%M:%S'
 
 logger = logging.getLogger(__name__)
 
-data = {"map_info":{"myId":"player1-xxx-xxx-xxx","size":{"cols":28,"rows":18},"players":[{"id":"player1-xxx-xxx-xxx","currentPosition":{"col":21,"row":4},"spawnBegin":{"col":6,"row":4},"speed":150,"power":12,"delay":1500,"spaceStone":3,"mindStone":2,"realityStone":4,"powerStone":11,"timeStone":1,"soulStone":5,"box":47},{"id":"player2-xxx-xxx-xxx","currentPosition":{"col":23,"row":13},"spawnBegin":{"col":23,"row":13},"spaceStone":0,"mindStone":0,"realityStone":0,"powerStone":0,"timeStone":0,"soulStone":0,"box":0}],"map":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,2,1,0,0,0,0,0,0,0,2,2,0,2,0,2,0,0,0,0,0,0,1,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,2,1,0,2,0,2,0,1,2,0,0,0,0,0,0,0,0,1],[1,1,0,0,0,0,0,1,0,0,0,1,1,1,0,0,1,1,0,0,1,0,0,0,0,0,1,1],[1,0,1,0,0,0,0,0,1,2,0,0,2,2,0,0,2,0,0,1,0,0,0,0,0,1,2,1],[1,0,0,0,0,1,0,0,0,1,2,0,0,0,0,1,0,0,1,0,0,0,1,0,1,2,0,1],[1,0,0,0,1,0,0,0,0,0,0,2,0,2,1,1,0,2,0,0,2,0,0,1,2,0,0,1],[1,0,0,0,0,0,0,1,2,0,1,2,2,2,0,0,0,2,0,0,0,0,0,0,0,0,0,1],[1,0,0,0,0,0,0,1,2,0,1,1,1,0,0,2,0,0,0,0,1,0,2,0,2,1,1,1],[1,0,1,1,2,0,0,1,2,0,2,2,0,2,2,1,1,1,0,0,1,0,0,2,0,0,0,1],[1,0,0,0,0,0,0,0,2,0,0,0,0,0,2,1,2,0,2,0,1,0,0,2,0,2,0,1],[1,0,2,2,1,0,0,0,0,2,0,1,1,0,0,0,2,0,2,0,2,2,2,1,2,0,2,1],[1,0,2,1,0,1,0,0,0,1,2,2,1,0,2,0,0,0,1,0,0,0,1,2,1,2,0,1],[1,2,1,0,0,0,0,0,1,0,0,0,0,0,2,0,0,0,0,1,0,0,2,0,2,1,2,1],[1,1,0,0,0,0,0,1,0,0,1,1,1,0,0,1,1,0,2,0,1,0,2,0,0,2,1,1],[1,0,0,0,0,2,0,0,2,2,1,0,2,2,2,2,1,2,0,2,0,2,0,0,0,0,0,1],[1,0,0,0,1,2,0,0,0,0,2,2,0,0,0,0,2,2,0,0,0,0,0,1,2,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],"bombs":[],"spoils":[],"gameStatus":None},"tag":"player:stop-moving"}
+data = {"map_info":{"myId":"player1-xxx-xxx-xxx","size":{"cols":28,"rows":18},"players":[{"id":"player1-xxx-xxx-xxx","currentPosition":{"col":1,"row":16},"spawnBegin":{"col":26,"row":16},"score":163,"speed":250,"power":12,"delay":200,"spaceStone":1,"mindStone":4,"realityStone":9,"powerStone":11,"timeStone":17,"soulStone":6,"box":85},{"id":"player2-xxx-xxx-xxx","currentPosition":{"col":1,"row":1},"spawnBegin":{"col":1,"row":1},"score":0,"spaceStone":0,"mindStone":0,"realityStone":0,"powerStone":0,"timeStone":0,"soulStone":0,"box":0}],"map":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,1,0,0,0,0,2,0,2,0,2,0,2,0,1,2,0,0,0,2,0,1],[1,0,2,1,1,0,0,0,0,0,0,0,0,0,0,2,0,2,0,2,1,0,0,2,2,0,0,1],[1,2,0,0,0,0,0,0,0,1,1,1,1,0,1,1,1,1,2,0,2,0,0,1,1,1,2,1],[1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,0,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,1,2,0,0,2,0,2,1],[1,0,0,0,1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,0,0,1,1,1,2,1,1],[1,0,0,0,0,0,0,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],[1,1,1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,2,2,1],[1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,1,1,1,1,0,0,0,1,2,0,2,1,1],[1,0,2,1,1,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,2,2,1],[1,1,2,0,0,0,0,1,1,1,0,0,0,1,1,0,0,0,0,0,0,0,0,2,2,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,2,0,0,1],[1,1,1,2,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,2,0,2,0,1,1,1,1,1],[1,2,0,0,0,0,0,0,0,1,0,0,1,1,1,1,0,0,0,1,0,2,0,2,0,0,0,1],[1,0,2,2,1,2,0,2,0,1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,1],[1,0,0,2,0,2,1,2,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],"bombs":[],"spoils":[],"gameStatus":None},"tag":"player:stop-moving","player_id":"player1-xxx-xxx-xxx"}
 
 ROW_NUM = [-1, 0, 0, 1]
 COL_NUM = [0, -1, 1, 0]
 MY_PLAYER_ID = "player1-xxx-xxx-xxx"
 ENEMY_PLAYER_ID = "player2-xxx-xxx-xxx"
+
+IS_RUN_TO_SAFE_POS = False
+IS_WAIT_BOMB_EXPLOSIVE = False
+COMMANDS = [Commands.UP, Commands.LEFT, Commands.RIGHT, Commands.DOWN]
 
 
 def get_bomb_radius(board, bomb):
@@ -98,10 +102,10 @@ def is_valid(row, col, rows, cols):
 def bfs(board, src, dest):
     """
     Find shortest path to src to dest
-    :param board:
-    :param src:
-    :param dest:
-    :return:
+    :param board: game board
+    :param src: source position
+    :param dest: destination position
+    :return: shortest path if has
     """
     visited = np.full((board.rows, board.cols), False, dtype=bool)
     visited[src.row][src.col] = True
@@ -112,16 +116,17 @@ def bfs(board, src, dest):
     while queue:
         node = queue.popleft()
         if node.row == dest.row and node.col == dest.col:
-            return node.dist, node.get_path()
-
+            directions, paths = node.get_path()
+            return node.dist, directions, paths
         for i in range(4):
             row = node.row + ROW_NUM[i]
             col = node.col + COL_NUM[i]
+            command = COMMANDS[i]
             if is_valid(row, col, board.rows, board.cols) and matrix[row][col] not in [1, 2] and not visited[row][col]:
                 visited[row][col] = True
-                queue.append(Node(row=row, col=col, dist=node.dist + 1, parent=node))
+                queue.append(Node(row=row, col=col, dist=node.dist + 1, parent=node, command=command))
 
-    return -1, None
+    return -1, None, None
 
 
 def near_by_pos_wood(board, woods_pos):
@@ -147,7 +152,7 @@ def near_by_pos_wood(board, woods_pos):
 def find_positions(board, items_type, not_condition=True):
     """
     Find nearest safe position
-    :return:
+    :return: paths if has
     """
     limit = max(board.cols, board.rows)
     my_player = board.get_player(MY_PLAYER_ID)
@@ -174,6 +179,8 @@ def find_positions(board, items_type, not_condition=True):
 
         min_dist = sys.maxsize
         paths = None
+        directions = None
+        dest_pos = None
 
         if ItemType.WOOD in items_type and not_condition:
             item_cells_pos = near_by_pos_wood(board, item_cells_pos)
@@ -181,14 +188,14 @@ def find_positions(board, items_type, not_condition=True):
         for cor in item_cells_pos:
             if not is_in_danger_area(board=board, x=cor[1], y=cor[0]):
                 des_pos = Position(cor[0], cor[1])
-                distance, pth = bfs(board, my_pos, des_pos)
+                distance, drcs, pth = bfs(board, my_pos, des_pos)
                 if distance != -1 and distance < min_dist:
                     min_dist = distance
                     paths = pth
-        if paths and len(paths) > 1:
-            return paths
+                    directions = drcs
+                    dest_pos = des_pos
 
-    return None
+    return directions, dest_pos, paths
 
 
 def has_bombs(board):
@@ -204,19 +211,24 @@ def find_nearest_spoils(board, my_pos):
     :return: shortest path from my player's position to one of the spoils
     """
     if len(board.spoils) <= 0:
-        return None
+        return None, None, None
 
     min_distance = sys.maxsize
+    min_directions = None
     min_paths = None
+    dest_pos = None
     for spoil in board.spoils:
         spoil_pos = Position(spoil.row, spoil.col)
-        distance, paths = bfs(board, my_pos, spoil_pos)
-        if distance > 0 and paths and len(paths) > 1:
-            if distance < min_distance:
-                min_distance = distance
-                min_paths = paths
-
-    return min_paths
+        if not is_in_danger_area(board=board, x=spoil.col, y=spoil.row):
+            distance, directions, paths = bfs(board, my_pos, spoil_pos)
+            if distance > 0 and paths and len(paths) > 1:
+                if distance < min_distance:
+                    min_distance = distance
+                    min_paths = paths
+                    min_directions = directions
+                    dest_pos = spoil_pos
+    logger.info("=====> Spoil paths at %s is: %s" % (dest_pos, min_paths))
+    return min_directions, dest_pos, min_paths
 
 
 def find_action(dest_pos, my_pos):
@@ -282,8 +294,8 @@ def shortest_path_to_enemy(board):
     enemy_player = board.get_player(ENEMY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
     enemy_pos = Position(enemy_player.row, enemy_player.col)
-    _, paths = bfs(board, my_pos, enemy_pos)
-    return paths
+    _, directions, paths = bfs(board, my_pos, enemy_pos)
+    return directions, enemy_pos, paths
 
 
 def bom_setup(board):
@@ -317,21 +329,50 @@ def bom_setup(board):
 
 
 def handle_command(board):
+    """
+    Find next move
+    :param board: game board
+    :return: None
+    """
+    global IS_RUN_TO_SAFE_POS
+    global SAFE_RUN_PATH
+    global MY_PLAYER_POS_WHEN_RUNNING
+    global TIME_START
+    global IS_WAIT_BOMB_EXPLOSIVE
+
     my_player = board.get_player(MY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
+
+    if IS_RUN_TO_SAFE_POS:
+        if my_pos.row != MY_PLAYER_POS_WHEN_RUNNING.row or MY_PLAYER_POS_WHEN_RUNNING.col != my_pos.col:
+            return
+        else:
+            IS_RUN_TO_SAFE_POS = False
+
+    logger.info("=====> IS_WAIT_BOMB_EXPLOSIVE: %s" % IS_WAIT_BOMB_EXPLOSIVE)
+    if IS_WAIT_BOMB_EXPLOSIVE:
+
+        return
 
     # If current my position not safe then I must find nearest safe position
     # and run to there as fast as possible
     # I must wait for bomb explosive before execute next action
     if is_in_danger_area(board=board, x=my_player.col, y=my_player.row):
-        paths = find_positions(
+        logger.info("=============> Position danger")
+
+        directions, dest_pos, _ = find_positions(
             board=board,
             items_type=[ItemType.WOOD, ItemType.STONE],
             not_condition=False
         )
-        if paths and len(paths) > 1:
-            action = find_action(paths[1], my_pos)
-            send_command(action)  # Run to safe position
+        if directions and len(directions) > 1:
+            cmd = "".join(directions[1:])
+            IS_RUN_TO_SAFE_POS = True
+            MY_PLAYER_POS_WHEN_RUNNING = dest_pos
+            send_command(cmd)
+            IS_WAIT_BOMB_EXPLOSIVE = True
+            #start_waiting_bomb_explosive()
+
     else:
         # If near enemy then bomb it first
         if is_near_enemy(board):
@@ -339,10 +380,13 @@ def handle_command(board):
         else:
             # Find shortest path from current position to one of the spoils
             # and run to it
-            spoil_paths = find_nearest_spoils(board, my_pos)
-            if spoil_paths and len(spoil_paths) > 1:
-                action = find_action(spoil_paths[1], my_pos)
-                send_command(action)
+            spoil_directions, dest_pos, spoil_paths = find_nearest_spoils(board, my_pos)
+
+            if spoil_directions and len(spoil_directions) > 1 and is_path_safe(board, spoil_paths[1:]):
+                cmd = "".join(spoil_directions[1:])
+                IS_RUN_TO_SAFE_POS = True
+                MY_PLAYER_POS_WHEN_RUNNING = dest_pos
+                send_command(cmd)
             else:
                 # If my position near wood then try setup bomb here
                 # to destroy it
@@ -352,26 +396,31 @@ def handle_command(board):
                 else:
                     # If I didn't find neighbor wood then try find nearest wood
                     # and move to it
-                    wood_paths = find_positions(
+                    wood_directions, dest_pos, wood_paths = find_positions(
                         board=board,
                         items_type=[ItemType.WOOD],
                         not_condition=True
                     )
                     logger.info("PATHS WOOD: %s" % wood_paths)
-                    if wood_paths and len(wood_paths) > 1:
-                        action = find_action(wood_paths[1], my_pos)
-                        send_command(action)
+                    if wood_directions and len(wood_directions) > 1 and is_path_safe(board, wood_paths[1:]):
+                        cmd = "".join(wood_directions[1:])
+                        IS_RUN_TO_SAFE_POS = True
+                        MY_PLAYER_POS_WHEN_RUNNING = dest_pos
+                        send_command(cmd)
                     else:
                         # If I didn't find any wood on board then
                         # I will find shortest path to enemy and bomb him
-                        enemy_paths = shortest_path_to_enemy(board)
-                        if enemy_paths and len(enemy_paths) > 1:
-                            action = find_action(enemy_paths[1], my_pos)
-                            send_command(action)
+                        enemy_directions, dest_pos, enemy_paths = shortest_path_to_enemy(board)
+                        if enemy_directions and len(enemy_directions) > 1 and is_path_safe(board, enemy_paths[1:]):
+                            cmd = "".join(enemy_directions[1:])
+                            IS_RUN_TO_SAFE_POS = True
+                            MY_PLAYER_POS_WHEN_RUNNING = dest_pos
+                            send_command(cmd)
                         else:
                             pass  # Don't execute any action
 
     if board.tag_name == 'start-game':
+        # start a thread to run character when don't have any event from server
         pass
     elif board.tag_name == 'player:start-moving':
         pass
@@ -382,6 +431,12 @@ def handle_command(board):
     elif board.tag_name == 'bomb:explosed':
         pass
 
+
+def is_path_safe(board, paths):
+    for path in paths:
+        if is_in_danger_area(board, path.col, path.row):
+            return False
+    return True
 
 """
 New logic

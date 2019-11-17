@@ -72,9 +72,11 @@ def get_delay_time():
 def waiting_bomb_explosive():
     global IS_WAIT_BOMB_EXPLOSIVE
     global BOARD
+    logger.info("================> start waiting_bomb_explosive")
     # waiting for x seconds
-    time.sleep(2.0)
+    time.sleep(3.0)
     IS_WAIT_BOMB_EXPLOSIVE = False
+    logger.info("================> end waiting_bomb_explosive")
     handle_command(BOARD)
 
 
@@ -86,16 +88,20 @@ def start_waiting_bomb_explosive():
 def run_character_watch_dog():
     global TIME_START
     global BOARD
+    global IS_RUN_TO_SAFE_POS
     while True:
         delta = datetime.utcnow() - TIME_START
         seconds = delta.seconds
         if seconds >= 10:
             TIME_START = datetime.utcnow()
+            IS_RUN_TO_SAFE_POS = False
+            logger.info("================> start run character watch dog")
             handle_command(BOARD)
         time.sleep(1.0)
 
 
 def start_run_character_watch_dog():
+    logger.info("================> start run character watch done")
     thread = threading.Thread(target=run_character_watch_dog)
     thread.start()
 
@@ -389,7 +395,7 @@ def bom_setup(board):
     :param board: game board
     :return: None
     """
-    global MY_PLAYER_POS_WHEN_RUNNING, IS_RUN_TO_SAFE_POS
+    global MY_PLAYER_POS_WHEN_RUNNING, IS_RUN_TO_SAFE_POS, IS_WAIT_BOMB_EXPLOSIVE
     my_player = board.get_player(MY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
 
@@ -409,7 +415,9 @@ def bom_setup(board):
         not_condition=False
     )
     if paths and len(paths) > 1:
-        cmds = "b".join(paths[0:])
+        paths.insert(0, "b")
+        cmds = "".join(paths)
+        logger.info("====> BOMBS COMMAND: %s" % cmds)
         IS_RUN_TO_SAFE_POS = True
         MY_PLAYER_POS_WHEN_RUNNING = dest_pos
         send_command(cmds)
@@ -485,14 +493,19 @@ def handle_command(board):
     my_player = board.get_player(MY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
 
+    logger.info("=====> HANDLE COMMAND")
+    logger.info("=====> IS_RUN_TO_SAFE_POS: %s" % IS_RUN_TO_SAFE_POS)
     if IS_RUN_TO_SAFE_POS:
         if my_pos.row != MY_PLAYER_POS_WHEN_RUNNING.row or MY_PLAYER_POS_WHEN_RUNNING.col != my_pos.col:
             return
         else:
             IS_RUN_TO_SAFE_POS = False
 
+    logger.info("=====> IS_WAIT_BOMB_EXPLOSIVE: %s" % IS_WAIT_BOMB_EXPLOSIVE)
     if IS_WAIT_BOMB_EXPLOSIVE:
         return
+
+    logger.info("=====> START HANDLE COMMAND")
 
     # If current my position not safe then I must find nearest safe position
     # and run to there as fast as possible
@@ -562,6 +575,7 @@ def handle_command(board):
     if board.tag_name == 'start-game':
         # start a thread to run character when don't have any event from server
         start_run_character_watch_dog()
+        pass
     elif board.tag_name == 'player:start-moving':
         pass
     elif board.tag_name == 'player:stop-moving':
@@ -602,7 +616,7 @@ def join_game(data):
 
 @sio.on('ticktack player')
 def ticktack_player(data):
-    logger.info('Received data: ', data)
+    logger.info('Received data: %s', data)
 
     global BOARD
     global TIME_START
