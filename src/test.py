@@ -14,6 +14,7 @@ from src.board import Board
 from src.bomb import Bomb
 import logging
 from random import sample
+import copy
 
 
 class ItemType(object):
@@ -44,12 +45,39 @@ logging.basicConfig(level='INFO', format=log_format, datefmt='%Y-%m-%d %H:%M:%S'
 
 logger = logging.getLogger(__name__)
 
-data = {"map_info":{"myId":"player1-xxx-xxx-xxx","size":{"cols":28,"rows":18},"players":[{"id":"player1-xxx-xxx-xxx","currentPosition":{"col":1,"row":16},"spawnBegin":{"col":26,"row":16},"score":163,"speed":250,"power":12,"delay":200,"spaceStone":1,"mindStone":4,"realityStone":9,"powerStone":11,"timeStone":17,"soulStone":6,"box":85},{"id":"player2-xxx-xxx-xxx","currentPosition":{"col":1,"row":1},"spawnBegin":{"col":1,"row":1},"score":0,"spaceStone":0,"mindStone":0,"realityStone":0,"powerStone":0,"timeStone":0,"soulStone":0,"box":0}],"map":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,1,0,0,0,0,2,0,2,0,2,0,2,0,1,2,0,0,0,2,0,1],[1,0,2,1,1,0,0,0,0,0,0,0,0,0,0,2,0,2,0,2,1,0,0,2,2,0,0,1],[1,2,0,0,0,0,0,0,0,1,1,1,1,0,1,1,1,1,2,0,2,0,0,1,1,1,2,1],[1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,0,0,0,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,1,2,0,0,2,0,2,1],[1,0,0,0,1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,0,0,1,1,1,2,1,1],[1,0,0,0,0,0,0,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],[1,1,1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,2,2,1],[1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,1,1,1,1,0,0,0,1,2,0,2,1,1],[1,0,2,1,1,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,2,2,1],[1,1,2,0,0,0,0,1,1,1,0,0,0,1,1,0,0,0,0,0,0,0,0,2,2,0,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,2,0,0,1],[1,1,1,2,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,2,0,2,0,1,1,1,1,1],[1,2,0,0,0,0,0,0,0,1,0,0,1,1,1,1,0,0,0,1,0,2,0,2,0,0,0,1],[1,0,2,2,1,2,0,2,0,1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,1],[1,0,0,2,0,2,1,2,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],"bombs":[],"spoils":[],"gameStatus":None},"tag":"player:stop-moving","player_id":"player1-xxx-xxx-xxx"}
+data = {u'player_id': u'player1-xxx-xxx-xxx', u'tag': u'player:start-moving', u'map_info': {
+    u'map': [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+             [1, 0, 0, 0, 0, 0, 2, 1, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 1, 2, 0, 0, 0, 0, 0, 1],
+             [1, 0, 2, 1, 1, 0, 2, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 1, 0, 0, 2, 0, 0, 0, 1],
+             [1, 2, 0, 0, 0, 0, 0, 2, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 2, 0, 2, 0, 0, 1, 1, 1, 0, 1],
+             [1, 1, 1, 1, 2, 2, 2, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0, 1, 2, 0, 0, 0, 0, 0, 1],
+             [1, 0, 0, 0, 2, 0, 0, 0, 0, 2, 2, 0, 0, 2, 1, 1, 0, 0, 2, 0, 1, 2, 0, 0, 2, 0, 2, 1],
+             [1, 2, 2, 0, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 0, 2, 1, 1, 1, 2, 1, 1],
+             [1, 2, 2, 0, 2, 0, 0, 1, 0, 0, 1, 1, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 1, 0, 0, 0, 1],
+             [1, 1, 1, 1, 2, 0, 0, 1, 0, 2, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 2, 2, 1],
+             [1, 0, 0, 0, 0, 0, 0, 1, 0, 2, 2, 2, 2, 0, 1, 1, 1, 1, 1, 2, 0, 0, 1, 2, 0, 2, 1, 1],
+             [1, 0, 2, 1, 1, 2, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 2, 0, 2, 0, 2, 2, 1],
+             [1, 1, 2, 2, 2, 2, 0, 1, 1, 1, 2, 2, 2, 1, 1, 2, 0, 2, 0, 2, 0, 2, 0, 2, 2, 0, 0, 1],
+             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 2, 0, 0, 2, 0, 2, 1, 1, 1, 1, 1, 2, 0, 0, 1],
+             [1, 1, 1, 0, 2, 1, 1, 2, 2, 2, 0, 0, 2, 2, 2, 0, 0, 0, 0, 2, 0, 0, 0, 1, 1, 1, 1, 1],
+             [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 1, 1, 1, 1, 2, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+             [1, 0, 0, 0, 1, 2, 0, 2, 0, 1, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 1, 1, 0, 0, 0, 0, 1],
+             [1, 0, 0, 2, 0, 2, 1, 2, 0, 1, 0, 0, 2, 0, 2, 0, 2, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]],
+    u'spoils': [{u'spoil_type': 7, u'col': 21, u'row': 13}], u'players': [
+        {u'box': 9, u'soulStone': 0, u'spaceStone': 0, u'power': 5, u'realityStone': 0, u'delay': 700,
+         u'currentPosition': {u'col': 22, u'row': 13}, u'score': 14, u'mindStone': 0,
+         u'spawnBegin': {u'col': 26, u'row': 16}, u'powerStone': 4, u'speed': 125, u'id': u'player1-xxx-xxx-xxx',
+         u'timeStone': 1},
+        {u'box': 7, u'soulStone': 0, u'spaceStone': 1, u'realityStone': 1, u'currentPosition': {u'col': 22, u'row': 1},
+         u'score': 18, u'mindStone': 1, u'spawnBegin': {u'col': 1, u'row': 16}, u'powerStone': 1,
+         u'id': u'player2-xxx-xxx-xxx', u'timeStone': 1}], u'bombs': [], u'myId': u'player1-xxx-xxx-xxx',
+    u'gameStatus': None, u'size': {u'rows': 18, u'cols': 28}}}
 
 ROW_NUM = [-1, 0, 0, 1]
 COL_NUM = [0, -1, 1, 0]
-MY_PLAYER_ID = "player1-xxx-xxx-xxx"
-ENEMY_PLAYER_ID = "player2-xxx-xxx-xxx"
+MY_PLAYER_ID = "player2-xxx-xxx-xxx"
+ENEMY_PLAYER_ID = "player1-xxx-xxx-xxx"
 
 IS_RUN_TO_SAFE_POS = False
 IS_WAIT_BOMB_EXPLOSIVE = False
@@ -304,6 +332,7 @@ def bom_setup(board):
     :param board: game board
     :return: None
     """
+    global MY_PLAYER_POS_WHEN_RUNNING, IS_RUN_TO_SAFE_POS, IS_WAIT_BOMB_EXPLOSIVE
     my_player = board.get_player(MY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
 
@@ -314,18 +343,27 @@ def bom_setup(board):
         'remainTime': 2000
     })
 
+    # Copy map and bomb to process
+
     board.bombs.append(bomb)
-    paths = find_positions(
+    paths, dest_pos, _ = find_positions(
         board=board,
-        my_pos=my_pos,
         items_type=[ItemType.STONE, ItemType.WOOD],
         not_condition=False
     )
-    if paths:
-        # setup bomb and run to safe position
-        # send_command(Commands.BOMB)
-        pass
+    if paths and len(paths) > 1:
+        paths.insert(0, "b")
+        cmds = "".join(paths)
+        logger.info("====> BOMBS COMMAND: %s" % cmds)
+        IS_RUN_TO_SAFE_POS = True
+        MY_PLAYER_POS_WHEN_RUNNING = dest_pos
+        send_command(cmds)
+        IS_WAIT_BOMB_EXPLOSIVE = True
+        # start_waiting_bomb_explosive()
+
     board.bombs.remove(bomb)
+
+    logger.info("=====> Setup bomb at %s" % my_pos)
 
 
 def handle_command(board):
@@ -351,7 +389,6 @@ def handle_command(board):
 
     logger.info("=====> IS_WAIT_BOMB_EXPLOSIVE: %s" % IS_WAIT_BOMB_EXPLOSIVE)
     if IS_WAIT_BOMB_EXPLOSIVE:
-
         return
 
     # If current my position not safe then I must find nearest safe position
@@ -371,7 +408,7 @@ def handle_command(board):
             MY_PLAYER_POS_WHEN_RUNNING = dest_pos
             send_command(cmd)
             IS_WAIT_BOMB_EXPLOSIVE = True
-            #start_waiting_bomb_explosive()
+            # start_waiting_bomb_explosive()
 
     else:
         # If near enemy then bomb it first
@@ -438,6 +475,7 @@ def is_path_safe(board, paths):
             return False
     return True
 
+
 """
 New logic
 """
@@ -462,7 +500,7 @@ def find_around_me(board, allowed, col, row):
     if row + 1 < h and allowed(matrix, col, row + 1):
         direction.update({Commands.DOWN})
     if col - 1 >= 0 and allowed(matrix, col - 1, row):
-        direction.update({Commands.LEFT})   # LEFT
+        direction.update({Commands.LEFT})  # LEFT
     if col + 1 < w and allowed(matrix, col + 1, row):
         direction.update({Commands.RIGHT})  # RIGHT
 
@@ -635,7 +673,8 @@ def next_move(board):
     # Look for nearby bombs
     if is_in_danger_area(board, my_player.col, my_player.row):
         # If in range, look for a safe place
-        dist, path = bfs_(board, matrix, my_player.col, my_player.row, lambda mat, x1, y1: not is_in_danger_area(board, x1, y1),
+        dist, path = bfs_(board, matrix, my_player.col, my_player.row,
+                          lambda mat, x1, y1: not is_in_danger_area(board, x1, y1),
                           lambda mat, x2, y2: mat[y2][x2] == 0, limit=5)
         if path:
             direction = sample(path, 1)[0]
@@ -667,7 +706,8 @@ def next_move(board):
         return direction
 
     # way is blocked- drop a bomb only if you have somewhere to run
-    dist, path = bfs_(board, matrix, my_player.col, my_player.row, lambda mat, x1, y1: not is_in_danger_area(board, x1, y1),
+    dist, path = bfs_(board, matrix, my_player.col, my_player.row,
+                      lambda mat, x1, y1: not is_in_danger_area(board, x1, y1),
                       lambda mat, x1, y1: mat[y1][x1] in [0, enemy_code] and not is_in_danger_area(board, x1, y1),
                       limit=5)
     if path:
@@ -678,4 +718,28 @@ def next_move(board):
 
 
 board = Board(data)
-handle_command(board=board)
+# handle_command(board=board)
+
+my_player = board.get_player(MY_PLAYER_ID)
+my_pos = Position(my_player.row, my_player.col)
+enemy_player = board.get_player(ENEMY_PLAYER_ID)
+enemy_pos = Position(enemy_player.row, enemy_player.col)
+
+bomb = Bomb({
+    'row': my_pos.row,
+    'col': my_pos.col,
+    'playerId': MY_PLAYER_ID,
+    'remainTime': 2000
+})
+
+# Copy map and bomb to process
+copy_board = copy.deepcopy(board)
+copy_board.bombs.append(bomb)
+
+print(copy_board.map[my_pos.row][my_pos.col])
+
+print(copy_board.map[enemy_pos.row][enemy_pos.col])
+
+copy_board.map[enemy_pos.row][enemy_pos.col] = ItemType.STONE
+
+print(copy_board.map[enemy_pos.row][enemy_pos.col])

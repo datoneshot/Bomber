@@ -5,6 +5,7 @@ from random import sample
 import logging
 import sys
 import numpy as np
+import copy
 import socketio
 from src.board import Board
 from src.bomb import Bomb
@@ -52,11 +53,12 @@ TIME_START = datetime.utcnow()
 BOARD = None
 
 IS_WAIT_BOMB_EXPLOSIVE = False
-
+IS_RUN_TO_AVOID_BOMB = False
 
 IS_RUN_TO_SAFE_POS = False
 SAFE_RUN_PATH = None
 MY_PLAYER_POS_WHEN_RUNNING = None
+
 
 
 def get_delay_time():
@@ -72,10 +74,12 @@ def get_delay_time():
 def waiting_bomb_explosive():
     global IS_WAIT_BOMB_EXPLOSIVE
     global BOARD
+    global IS_RUN_TO_AVOID_BOMB
     logger.info("================> start waiting_bomb_explosive")
     # waiting for x seconds
     time.sleep(3.0)
     IS_WAIT_BOMB_EXPLOSIVE = False
+    IS_RUN_TO_AVOID_BOMB = False
     logger.info("================> end waiting_bomb_explosive")
     handle_command(BOARD)
 
@@ -380,6 +384,7 @@ def is_near_enemy(board):
     enemy_player = board.get_player(ENEMY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
     enemy_pos = Position(enemy_player.row, enemy_player.col)
+
     if (my_pos.row == enemy_pos.row) and ((my_pos.col - 1 == enemy_pos.col) or
                                           (my_pos.col + 1 == enemy_pos.col)):
         return True
@@ -396,6 +401,7 @@ def bom_setup(board):
     :return: None
     """
     global MY_PLAYER_POS_WHEN_RUNNING, IS_RUN_TO_SAFE_POS, IS_WAIT_BOMB_EXPLOSIVE
+    global IS_RUN_TO_AVOID_BOMB
     my_player = board.get_player(MY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
 
@@ -421,12 +427,57 @@ def bom_setup(board):
         IS_RUN_TO_SAFE_POS = True
         MY_PLAYER_POS_WHEN_RUNNING = dest_pos
         send_command(cmds)
-        IS_WAIT_BOMB_EXPLOSIVE = True
-        start_waiting_bomb_explosive()
+        IS_RUN_TO_AVOID_BOMB = True
+        # IS_WAIT_BOMB_EXPLOSIVE = True
+        # start_waiting_bomb_explosive()
 
     board.bombs.remove(bomb)
 
     logger.info("=====> Setup bomb at %s" % my_pos)
+
+
+def bom_enemy(board):
+    """
+    Try setup bomb at enemy position and run to safe position
+    :param board: game board
+    :return: None
+    """
+    global MY_PLAYER_POS_WHEN_RUNNING, IS_RUN_TO_SAFE_POS, IS_WAIT_BOMB_EXPLOSIVE
+    global IS_RUN_TO_AVOID_BOMB
+    my_player = board.get_player(MY_PLAYER_ID)
+    my_pos = Position(my_player.row, my_player.col)
+    enemy_player = board.get_player(ENEMY_PLAYER_ID)
+    enemy_pos = Position(enemy_player.row, enemy_player.col)
+
+    bomb = Bomb({
+        'row': my_pos.row,
+        'col': my_pos.col,
+        'playerId': MY_PLAYER_ID,
+        'remainTime': 2000
+    })
+
+    # Copy map and bomb to process
+    copy_board = copy.deepcopy(board)
+    copy_board.bombs.append(bomb)
+    copy_board.map[enemy_pos.row][enemy_pos.col] = ItemType.STONE
+
+    paths, dest_pos, _ = find_positions(
+        board=copy_board,
+        items_type=[ItemType.STONE, ItemType.WOOD],
+        not_condition=False
+    )
+    if paths and len(paths) > 1:
+        paths.insert(0, "b")
+        cmds = "".join(paths)
+        logger.info("====> BOMBS COMMAND: %s" % cmds)
+        IS_RUN_TO_SAFE_POS = True
+        MY_PLAYER_POS_WHEN_RUNNING = dest_pos
+        send_command(cmds)
+        IS_RUN_TO_AVOID_BOMB = True
+        # IS_WAIT_BOMB_EXPLOSIVE = True
+        # start_waiting_bomb_explosive()
+
+    logger.info("=====> Setup bomb enemy at %s" % my_pos)
 
 
 def find_nearest_spoils(board, my_pos):
@@ -467,8 +518,30 @@ def shortest_path_to_enemy(board):
     enemy_player = board.get_player(ENEMY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
     enemy_pos = Position(enemy_player.row, enemy_player.col)
-    _, directions, paths = bfs(board, my_pos, enemy_pos)
-    return directions, enemy_pos, paths
+
+    up = max(0, enemy_pos.row - 1)
+    down = min(board.rows, enemy_pos.row + 1)
+    left = max(0, enemy_pos.col - 1)
+    right = min(board.cols, enemy_pos.col + 1)
+
+    up_pos = Position(up, enemy_pos.col)
+    down_pos = Position(down, enemy_pos.col)
+    left_pos = Position(enemy_pos.row, left)
+    right_pos = Position(enemy_pos.row, right)
+
+    directions = None
+    position = None
+    paths = None
+    min_dist = -1
+
+    for p in [up_pos, down_pos, left_pos, right_pos]:
+        dist, drcs, pths = bfs(board, my_pos, p)
+        if dist < min_dist:
+            directions = drcs
+            paths = paths
+            position = p
+
+    return directions, position, paths
 
 
 def board_is_valid():
@@ -489,6 +562,7 @@ def handle_command(board):
     global MY_PLAYER_POS_WHEN_RUNNING
     global TIME_START
     global IS_WAIT_BOMB_EXPLOSIVE
+    global IS_RUN_TO_AVOID_BOMB
 
     my_player = board.get_player(MY_PLAYER_ID)
     my_pos = Position(my_player.row, my_player.col)
@@ -497,9 +571,15 @@ def handle_command(board):
     logger.info("=====> IS_RUN_TO_SAFE_POS: %s" % IS_RUN_TO_SAFE_POS)
     if IS_RUN_TO_SAFE_POS:
         if my_pos.row != MY_PLAYER_POS_WHEN_RUNNING.row or MY_PLAYER_POS_WHEN_RUNNING.col != my_pos.col:
+            logger.info("=====> RUNNING TO SAFE POSITION")
             return
         else:
             IS_RUN_TO_SAFE_POS = False
+            logger.info("=====> STAND TO SAFE POSITION")
+            if IS_RUN_TO_AVOID_BOMB:
+                IS_WAIT_BOMB_EXPLOSIVE = True
+                start_waiting_bomb_explosive()
+                return
 
     logger.info("=====> IS_WAIT_BOMB_EXPLOSIVE: %s" % IS_WAIT_BOMB_EXPLOSIVE)
     if IS_WAIT_BOMB_EXPLOSIVE:
@@ -511,7 +591,7 @@ def handle_command(board):
     # and run to there as fast as possible
     # I must wait for bomb explosive before execute next action
     if is_in_danger_area(board=board, x=my_player.col, y=my_player.row):
-        logger.info("=============> Position danger")
+        logger.info("=============> IN POSITION DANGER")
 
         directions, dest_pos, _ = find_positions(
             board=board,
@@ -523,22 +603,23 @@ def handle_command(board):
             IS_RUN_TO_SAFE_POS = True
             MY_PLAYER_POS_WHEN_RUNNING = dest_pos
             send_command(cmd)
-            IS_WAIT_BOMB_EXPLOSIVE = True
-            start_waiting_bomb_explosive()
-
+            # IS_WAIT_BOMB_EXPLOSIVE = True
+            # start_waiting_bomb_explosive()
+            IS_RUN_TO_AVOID_BOMB = True
     else:
         # If near enemy then bomb it first
         if is_near_enemy(board):
-            bom_setup(board)  # Bomb enemy
+            bom_enemy(board)  # Bomb enemy
         else:
             # Find shortest path from current position to one of the spoils
             # and run to it
             spoil_directions, dest_pos, spoil_paths = find_nearest_spoils(board, my_pos)
 
-            if spoil_directions and len(spoil_directions) > 1 and is_path_safe(board, spoil_paths[1:]):
+            if spoil_directions and len(spoil_directions) > 1:
                 cmd = "".join(spoil_directions[1:])
                 IS_RUN_TO_SAFE_POS = True
                 MY_PLAYER_POS_WHEN_RUNNING = dest_pos
+                IS_RUN_TO_AVOID_BOMB = False
                 send_command(cmd)
             else:
                 # If my position near wood then try setup bomb here
@@ -555,18 +636,20 @@ def handle_command(board):
                         not_condition=True
                     )
                     logger.info("PATHS WOOD: %s" % wood_paths)
-                    if wood_directions and len(wood_directions) > 1 and is_path_safe(board, wood_paths[1:]):
+                    if wood_directions and len(wood_directions) > 1:
                         cmd = "".join(wood_directions[1:])
                         IS_RUN_TO_SAFE_POS = True
+                        IS_RUN_TO_AVOID_BOMB = False
                         MY_PLAYER_POS_WHEN_RUNNING = dest_pos
                         send_command(cmd)
                     else:
                         # If I didn't find any wood on board then
                         # I will find shortest path to enemy and bomb him
                         enemy_directions, dest_pos, enemy_paths = shortest_path_to_enemy(board)
-                        if enemy_directions and len(enemy_directions) > 1 and is_path_safe(board, enemy_paths[1:]):
+                        if enemy_directions and len(enemy_directions) > 1:
                             cmd = "".join(enemy_directions[1:])
                             IS_RUN_TO_SAFE_POS = True
+                            IS_RUN_TO_AVOID_BOMB = False
                             MY_PLAYER_POS_WHEN_RUNNING = dest_pos
                             send_command(cmd)
                         else:
@@ -620,6 +703,7 @@ def ticktack_player(data):
 
     global BOARD
     global TIME_START
+    global ENEMY_PLAYER_ID
 
     new_board = Board(data)
     BOARD = new_board
@@ -628,6 +712,15 @@ def ticktack_player(data):
     if not board_is_valid():
         logger.info("Ignore data =====> ")
         return
+
+    # get enemy play id
+    enemy_id = [x.id for x in new_board.players or [] if x.id != MY_PLAYER_ID]
+    if not enemy_id:
+        return
+
+    ENEMY_PLAYER_ID = enemy_id[0]
+
+    logger.info("=====> ENEMY_PLAYER_ID: %s", ENEMY_PLAYER_ID)
 
     if MY_PLAYER_ID == 'player1-xxx-xxx-xxx':
         handle_command(new_board)
@@ -739,11 +832,11 @@ def is_in_danger_area(board, x, y):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) <= 3:
+    if len(sys.argv) <= 2:
         print("Use command: python socket.py <url> <game_id> <player_id>")
         exit(0)
 
-    URL, GAME_ID, MY_PLAYER_ID, ENEMY_PLAYER_ID = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+    URL, GAME_ID, MY_PLAYER_ID = sys.argv[1], sys.argv[2], sys.argv[3]
 
     sio.connect(URL)
     sio.wait()
